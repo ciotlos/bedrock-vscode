@@ -5,16 +5,9 @@ import type { AwsCredentialIdentity, Provider } from "@aws-sdk/types";
 import { ConfigurationService } from "./configuration.service";
 import { logger } from "../logger";
 
-/**
- * Manages AWS authentication and credential creation.
- * Handles all authentication methods: default, api-key, profile, and access-keys.
- */
 export class AuthenticationService {
 	constructor(private readonly configService: ConfigurationService) {}
 
-	/**
-	 * Get authentication configuration from VS Code settings
-	 */
 	async getAuthConfig(silent: boolean = false): Promise<AuthConfig | undefined> {
 		const method = this.configService.getAuthMethod();
 
@@ -23,7 +16,7 @@ export class AuthenticationService {
 		}
 
 		if (method === 'api-key') {
-			const apiKey = this.configService.getApiKey();
+			const apiKey = await this.configService.getApiKey();
 			if (!apiKey && !silent) {
 				vscode.window.showInformationMessage(
 					'Please configure your AWS Bedrock API Key in settings or run "Configure AWS Bedrock".'
@@ -51,9 +44,9 @@ export class AuthenticationService {
 		}
 
 		if (method === 'access-keys') {
-			const accessKeyId = this.configService.getAccessKeyId();
-			const secretAccessKey = this.configService.getSecretAccessKey();
-			const sessionToken = this.configService.getSessionToken();
+			const accessKeyId = await this.configService.getAccessKeyId();
+			const secretAccessKey = await this.configService.getSecretAccessKey();
+			const sessionToken = await this.configService.getSessionToken();
 
 			if (!accessKeyId || !secretAccessKey) {
 				if (!silent) {
@@ -75,11 +68,7 @@ export class AuthenticationService {
 		return undefined;
 	}
 
-	/**
-	 * Create AWS credentials from authentication configuration
-	 */
 	getCredentials(authConfig: AuthConfig): AwsCredentialIdentity | Provider<AwsCredentialIdentity> | undefined {
-		// Clean up API key environment variable if not using API key auth
 		if (authConfig.method !== 'api-key') {
 			delete process.env.AWS_BEARER_TOKEN_BEDROCK;
 		}
@@ -113,7 +102,6 @@ export class AuthenticationService {
 			};
 		}
 
-		// 'default' method - use AWS SDK's default credential provider chain
 		logger.log("[Authentication Service] Using default credential provider chain");
 		return undefined;
 	}
