@@ -168,13 +168,14 @@ export class ChatRequestHandler {
 			await this.streamProcessor.processStream(stream, trackingProgress, token);
 			logger.log("[Chat Request Handler] Finished processing stream");
 		} catch (err) {
-			const errorMsg = err instanceof Error ? err.message : String(err);
+			const errorDetail = err instanceof Error ? { name: err.name, message: err.message } : String(err);
 			logger.error("[Chat Request Handler] Chat request failed", {
 				modelId: model.id,
 				messageCount: messages.length,
-				error: err instanceof Error ? { name: err.name, message: err.message } : String(err),
+				error: errorDetail,
 			});
-			vscode.window.showErrorMessage(`Bedrock chat request failed: ${errorMsg}`);
+			const userMsg = err instanceof Error ? err.name : "Unknown error";
+			vscode.window.showErrorMessage(`Bedrock chat request failed: ${userMsg}. Check the "Bedrock Chat" output channel for details.`);
 			throw err;
 		}
 	}

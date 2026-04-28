@@ -11,14 +11,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(outputChannel);
 
-	// Initialize services with dependency injection
 	const configService = new ConfigurationService();
+	configService.setSecretStorage(context.secrets);
 	const authService = new AuthenticationService(configService);
 	const provider = new BedrockChatProvider(configService, authService);
 
 	vscode.lm.registerLanguageModelChatProvider("bedrock", provider);
 
-	// Listen for configuration changes
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('languageModelChatProvider.bedrock')) {
@@ -27,10 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-	// Register commands
 	context.subscriptions.push(
 		vscode.commands.registerCommand("bedrock.manage", async () => {
-			await manageSettings(context.secrets, context.globalState);
+			await manageSettings(configService);
 		})
 	);
 
@@ -42,8 +40,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("bedrock.selectModel", async () => {
-			// Model selection is now built into VS Code's chat interface
-			// This command provides guidance to users
 			const action = await vscode.window.showInformationMessage(
 				'Model selection is available in the VS Code chat interface. Click the model dropdown in the chat panel to select a Bedrock model.',
 				'Open Chat Settings'
