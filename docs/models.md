@@ -47,4 +47,4 @@ See the [model metadata maintenance guide](./model-metadata-maintenance.md) for 
 
 ## Prompt Caching
 
-Bedrock supports [prompt caching](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html) for Claude and Nova models, which can reduce latency by up to 80% and cost by up to 85% for repeated conversation prefixes. This feature is **not yet implemented** in the extension. See the [prompt caching feature spec](../.kiro/specs/prompt-caching/requirements.md) for the planned implementation.
+Bedrock supports [prompt caching](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html) for Claude and Nova models, which can reduce latency by up to 80% and cost by up to 85% for repeated conversation prefixes. This feature is **not yet implemented** in the extension and is planned for a future release.

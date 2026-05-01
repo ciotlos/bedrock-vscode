@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/aristide1997/bedrock-vscode-chat
-cd bedrock-vscode-chat
+git clone https://github.com/ciotlos/bedrock-vscode-copilot
+cd bedrock-vscode-copilot
 npm install
 npm run compile
 ```
@@ -72,4 +72,4 @@ src/
 - Some models don't support streaming with tool calls simultaneously
 - Rate limits apply based on your AWS account settings
 - Token limits for models are bundled as static metadata and updated with extension releases
-- Prompt caching is not yet implemented (see [feature spec](../.kiro/specs/prompt-caching/requirements.md))
+- Prompt caching is not yet implemented (planned for a future release)
