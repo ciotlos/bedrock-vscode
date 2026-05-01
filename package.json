@@ -92,11 +92,6 @@
 				"title": "Manage AWS Bedrock Provider"
 			},
 			{
-				"command": "bedrock.selectModel",
-				"title": "Change Bedrock Model",
-				"category": "AWS Bedrock"
-			},
-			{
 				"command": "bedrock.configure",
 				"title": "Configure AWS Bedrock",
 				"category": "AWS Bedrock"

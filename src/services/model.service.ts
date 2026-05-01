@@ -1,23 +1,18 @@
 import * as vscode from "vscode";
 import type { LanguageModelChatInformation } from "vscode";
-import type { BedrockModelSummary, AuthConfig } from "../types";
+import type { BedrockModelSummary } from "../types";
 import { BedrockClient } from "../clients/bedrock.client";
-import { OpenRouterClient } from "./openrouter.client";
+import { getModelMetadata } from "../data/model-metadata";
 import { AuthenticationService } from "./authentication.service";
 import { ConfigurationService } from "./configuration.service";
 import { logger } from "../logger";
 
-const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
-const DEFAULT_CONTEXT_LENGTH = 200000;
-
 /**
  * Manages model information, capabilities, and metadata.
- * Coordinates between AWS Bedrock and OpenRouter data sources.
+ * Uses static bundled metadata for model properties (context length, output tokens, thinking support).
  */
 export class ModelService {
 	private bedrockClient: BedrockClient;
-	private openRouterClient: OpenRouterClient;
-	private chatEndpoints: { model: string; modelMaxPromptTokens: number }[] = [];
 
 	constructor(
 		private readonly authService: AuthenticationService,
@@ -25,7 +20,6 @@ export class ModelService {
 	) {
 		const region = this.configService.getRegion();
 		this.bedrockClient = new BedrockClient(region);
-		this.openRouterClient = new OpenRouterClient();
 	}
 
 	/**
@@ -41,7 +35,7 @@ export class ModelService {
 	 * Fetch and prepare language model chat information
 	 */
 	async getLanguageModelChatInformation(
-		silent: boolean = false
+		silent = false
 	): Promise<LanguageModelChatInformation[]> {
 		const authConfig = await this.authService.getAuthConfig(silent);
 		if (!authConfig) {
@@ -56,9 +50,10 @@ export class ModelService {
 
 		try {
 			const credentials = this.authService.getCredentials(authConfig);
+			const bearerToken = this.authService.getBearerToken(authConfig);
 			[models, availableProfileIds] = await Promise.all([
-				this.bedrockClient.fetchModels(credentials),
-				this.bedrockClient.fetchInferenceProfiles(credentials),
+				this.bedrockClient.fetchModels(credentials, bearerToken),
+				this.bedrockClient.fetchInferenceProfiles(credentials, bearerToken),
 			]);
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
@@ -81,10 +76,8 @@ export class ModelService {
 			const hasInferenceProfile = availableProfileIds.has(inferenceProfileId);
 			const modelIdToUse = hasInferenceProfile ? inferenceProfileId : m.modelId;
 
-			// Try to get model properties from OpenRouter, fall back to defaults
-			const properties = await this.openRouterClient.getModelProperties(modelIdToUse);
-			const maxInput = properties?.contextLength ?? DEFAULT_CONTEXT_LENGTH;
-			const maxOutput = properties?.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
+			// Get model properties from static metadata
+			const metadata = getModelMetadata(modelIdToUse);
 			const vision = m.inputModalities.includes("IMAGE");
 
 			const modelInfo: LanguageModelChatInformation = {
@@ -94,8 +87,8 @@ export class ModelService {
 				detail: `${m.providerName} • ${hasInferenceProfile ? 'Multi-Region' : region}`,
 				family: "bedrock",
 				version: "1.0.0",
-				maxInputTokens: maxInput,
-				maxOutputTokens: maxOutput,
+				maxInputTokens: metadata.contextLength,
+				maxOutputTokens: metadata.maxOutputTokens,
 				capabilities: {
 					toolCalling: true,
 					imageInput: vision,
@@ -104,30 +97,19 @@ export class ModelService {
 			infos.push(modelInfo);
 		}
 
-		this.chatEndpoints = infos.map((info) => ({
-			model: info.id,
-			modelMaxPromptTokens: info.maxInputTokens + info.maxOutputTokens,
-		}));
-
 		return infos;
 	}
 
 	/**
 	 * Check if a model supports thinking/reasoning
 	 */
-	async supportsThinking(modelId: string): Promise<boolean> {
+	supportsThinking(modelId: string): boolean {
 		const thinkingConfig = this.configService.getThinkingConfig();
 		if (!thinkingConfig) {
 			return false;
 		}
 
-		return await this.openRouterClient.supportsThinking(modelId);
-	}
-
-	/**
-	 * Get cached chat endpoints
-	 */
-	getChatEndpoints(): { model: string; modelMaxPromptTokens: number }[] {
-		return this.chatEndpoints;
+		const metadata = getModelMetadata(modelId);
+		return metadata.supportsThinking;
 	}
 }

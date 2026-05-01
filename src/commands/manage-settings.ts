@@ -19,6 +19,16 @@ const REGIONS = [
 	"sa-east-1",
 ];
 
+/**
+ * Determine the appropriate configuration target.
+ * Uses Workspace scope when a workspace is open, Global otherwise.
+ */
+function getConfigTarget(): vscode.ConfigurationTarget {
+	return vscode.workspace.workspaceFolders?.length
+		? vscode.ConfigurationTarget.Workspace
+		: vscode.ConfigurationTarget.Global;
+}
+
 export async function manageSettings(
 	configService: ConfigurationService
 ): Promise<void> {
@@ -31,7 +41,6 @@ export async function manageSettings(
 			{ label: "Set Authentication Method", value: "auth-method", description: `Current: ${existingAuthMethod}` },
 			{ label: "Set Region", value: "region", description: `Current: ${existingRegion}` },
 			{ label: "Clear Settings", value: "clear" },
-			{ label: "More Settings", value: "more-settings", description: "Open all Bedrock settings in VS Code" },
 		],
 		{
 			title: "Manage AWS Bedrock Provider",
@@ -52,14 +61,12 @@ export async function manageSettings(
 			ignoreFocusOut: true,
 		});
 		if (region) {
-			await config.update("region", region, vscode.ConfigurationTarget.Global);
+			await config.update("region", region, getConfigTarget());
 			vscode.window.showInformationMessage(`AWS Bedrock region set to ${region}.`);
 		}
 	} else if (action.value === "clear") {
 		await clearAllSettings(configService);
 		vscode.window.showInformationMessage("AWS Bedrock settings cleared.");
-	} else if (action.value === "more-settings") {
-		await vscode.commands.executeCommand('workbench.action.openSettings', 'languageModelChatProvider.bedrock');
 	}
 }
 
@@ -84,7 +91,7 @@ async function handleAuthMethodSelection(configService: ConfigurationService): P
 
 	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
 	await clearAuthSettings(configService);
-	await config.update("authMethod", method.value, vscode.ConfigurationTarget.Global);
+	await config.update("authMethod", method.value, getConfigTarget());
 
 	if (method.value === "api-key") {
 		await handleApiKeySetup(configService);
@@ -114,7 +121,22 @@ async function handleApiKeySetup(configService: ConfigurationService): Promise<v
 		return;
 	}
 
-	await configService.setApiKey(apiKey.trim());
+	const trimmed = apiKey.trim();
+
+	// Warn if the key doesn't match the expected Bedrock API key format
+	if (!trimmed.startsWith("bedrock-api-key-")) {
+		const proceed = await vscode.window.showWarningMessage(
+			"This doesn't look like a Bedrock API key (expected prefix 'bedrock-api-key-'). " +
+			"Make sure you're not pasting an AWS secret access key here.",
+			"Save Anyway",
+			"Cancel"
+		);
+		if (proceed !== "Save Anyway") {
+			return;
+		}
+	}
+
+	await configService.setApiKey(trimmed);
 	vscode.window.showInformationMessage("AWS Bedrock API key saved securely.");
 }
 
@@ -136,7 +158,7 @@ async function handleProfileSetup(): Promise<void> {
 	}
 
 	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
-	await config.update("profile", profile.trim(), vscode.ConfigurationTarget.Global);
+	await config.update("profile", profile.trim(), getConfigTarget());
 	vscode.window.showInformationMessage(`AWS profile set to '${profile.trim()}'.`);
 }
 
@@ -197,12 +219,12 @@ async function handleAccessKeysSetup(configService: ConfigurationService): Promi
 async function clearAuthSettings(configService: ConfigurationService): Promise<void> {
 	await configService.deleteAllSecrets();
 	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
-	await config.update("profile", undefined, vscode.ConfigurationTarget.Global);
+	await config.update("profile", undefined, getConfigTarget());
 }
 
 async function clearAllSettings(configService: ConfigurationService): Promise<void> {
 	await clearAuthSettings(configService);
 	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
-	await config.update("authMethod", undefined, vscode.ConfigurationTarget.Global);
-	await config.update("region", undefined, vscode.ConfigurationTarget.Global);
+	await config.update("authMethod", undefined, getConfigTarget());
+	await config.update("region", undefined, getConfigTarget());
 }

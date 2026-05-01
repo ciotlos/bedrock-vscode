@@ -19,6 +19,86 @@ import { AuthenticationService } from "../services/authentication.service";
 import { ConfigurationService } from "../services/configuration.service";
 import { TokenEstimator } from "./token.estimator";
 
+/** Maximum number of retries for transient errors. */
+const MAX_RETRIES = 1;
+/** Delay in ms before retrying a transient error. */
+const RETRY_DELAY_MS = 1000;
+
+/**
+ * Check if an error is retryable (transient network/throttling issues).
+ */
+function isRetryable(err: Error): boolean {
+	const name = err.name ?? "";
+	const message = err.message ?? "";
+	const combined = `${name} ${message}`.toLowerCase();
+
+	// AWS throttling
+	if (name === "ThrottlingException" || name === "TooManyRequestsException") {
+		return true;
+	}
+
+	// HTTP 5xx from AWS
+	if (name === "InternalServerException" || name === "ServiceUnavailableException") {
+		return true;
+	}
+
+	// Network-level transient errors
+	if (combined.includes("econnreset") || combined.includes("etimedout") || combined.includes("epipe")) {
+		return true;
+	}
+
+	// SDK timeout
+	if (name === "TimeoutError" || combined.includes("socket hang up")) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Execute a function with retry logic for transient errors.
+ */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = MAX_RETRIES): Promise<T> {
+	let lastError: Error | undefined;
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		try {
+			return await fn();
+		} catch (err) {
+			lastError = err instanceof Error ? err : new Error(String(err));
+			if (attempt < maxRetries && isRetryable(lastError)) {
+				logger.warn(
+					`[Chat Request Handler] Attempt ${attempt + 1} failed with retryable error, retrying in ${RETRY_DELAY_MS}ms...`,
+					lastError.name,
+					lastError.message
+				);
+				await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+				continue;
+			}
+			throw lastError;
+		}
+	}
+	throw lastError;
+}
+
+/**
+ * Classify a message part into a type string for logging.
+ */
+function classifyPart(p: unknown): string {
+	if (p instanceof vscode.LanguageModelTextPart) {
+		return 'text';
+	}
+	if (p instanceof vscode.LanguageModelToolCallPart) {
+		return 'toolCall';
+	}
+	if (typeof p === 'object' && p !== null && 'mimeType' in p) {
+		const mimed = p as { mimeType?: string };
+		if (mimed.mimeType?.startsWith('image/')) {
+			return 'image';
+		}
+	}
+	return 'toolResult';
+}
+
 /**
  * Handles chat request processing for Bedrock models.
  * Coordinates message conversion, validation, and streaming.
@@ -70,6 +150,13 @@ export class ChatRequestHandler {
 			},
 		};
 
+		// Wire cancellation token to an AbortController so cancellation
+		// aborts the underlying HTTP request, not just the loop check.
+		const abortController = new AbortController();
+		const cancellationDisposable = token.onCancellationRequested(() => {
+			abortController.abort();
+		});
+
 		try {
 			const authConfig = await this.authService.getAuthConfig();
 			if (!authConfig) {
@@ -78,12 +165,7 @@ export class ChatRequestHandler {
 
 			logger.log("[Chat Request Handler] Converting messages, count:", messages.length);
 			messages.forEach((msg, idx) => {
-				const partTypes = msg.content.map(p => {
-					if (p instanceof vscode.LanguageModelTextPart) return 'text';
-					if (p instanceof vscode.LanguageModelToolCallPart) return 'toolCall';
-					if (typeof p === 'object' && p !== null && 'mimeType' in p && (p as any).mimeType?.startsWith('image/')) return 'image';
-					return 'toolResult';
-				});
+				const partTypes = msg.content.map(p => classifyPart(p));
 				logger.log(`[Chat Request Handler] Message ${idx} (${msg.role}):`, partTypes);
 			});
 
@@ -93,9 +175,9 @@ export class ChatRequestHandler {
 			logger.log("[Chat Request Handler] Converted to Bedrock messages:", converted.messages.length);
 			converted.messages.forEach((msg, idx) => {
 				const contentTypes = msg.content.map(c => {
-					if ('text' in c) return 'text';
-					if ('image' in c) return 'image';
-					if ('toolUse' in c) return 'toolUse';
+					if ('text' in c) { return 'text'; }
+					if ('image' in c) { return 'image'; }
+					if ('toolUse' in c) { return 'toolUse'; }
 					return 'toolResult';
 				});
 				logger.log(`[Chat Request Handler] Bedrock message ${idx} (${msg.role}):`, contentTypes);
@@ -120,11 +202,11 @@ export class ChatRequestHandler {
 
 			// Check if thinking is configured and model supports it
 			const thinkingConfig = this.configService.getThinkingConfig();
-			const supportsThinking = thinkingConfig ? await this.modelService.supportsThinking(model.id) : false;
+			const supportsThinking = thinkingConfig ? this.modelService.supportsThinking(model.id) : false;
 
 			const requestInput: ConverseStreamCommandInput = {
 				modelId: model.id,
-				messages: converted.messages as any,
+				messages: converted.messages as ConverseStreamCommandInput["messages"],
 				inferenceConfig: {
 					maxTokens: Math.min(options.modelOptions?.max_tokens || 4096, model.maxOutputTokens),
 					// Temperature must be 1.0 when thinking is enabled, otherwise use user preference or default
@@ -133,7 +215,7 @@ export class ChatRequestHandler {
 			};
 
 			if (converted.system.length > 0) {
-				requestInput.system = converted.system as any;
+				requestInput.system = converted.system as ConverseStreamCommandInput["system"];
 			}
 
 			if (options.modelOptions) {
@@ -144,17 +226,17 @@ export class ChatRequestHandler {
 				if (typeof mo.stop === "string") {
 					requestInput.inferenceConfig!.stopSequences = [mo.stop];
 				} else if (Array.isArray(mo.stop)) {
-					requestInput.inferenceConfig!.stopSequences = mo.stop;
+					requestInput.inferenceConfig!.stopSequences = mo.stop as string[];
 				}
 			}
 
 			if (toolConfig) {
-				requestInput.toolConfig = toolConfig as any;
+				requestInput.toolConfig = toolConfig as ConverseStreamCommandInput["toolConfig"];
 			}
 
 			if (thinkingConfig && supportsThinking) {
 				requestInput.additionalModelRequestFields = {
-					...(requestInput.additionalModelRequestFields as any),
+					...((requestInput.additionalModelRequestFields as Record<string, unknown>) ?? {}),
 					thinking: thinkingConfig,
 				};
 				logger.log("[Chat Request Handler] Extended thinking enabled with budget:", thinkingConfig.budget_tokens);
@@ -162,12 +244,28 @@ export class ChatRequestHandler {
 
 			logger.log("[Chat Request Handler] Starting streaming request");
 			const credentials = this.authService.getCredentials(authConfig);
-			const stream = await this.bedrockClient.startConversationStream(credentials, requestInput);
+			const bearerToken = this.authService.getBearerToken(authConfig);
 
-			logger.log("[Chat Request Handler] Processing stream events");
-			await this.streamProcessor.processStream(stream, trackingProgress, token);
-			logger.log("[Chat Request Handler] Finished processing stream");
+			// Wrap the streaming call in retry logic for transient errors
+			await withRetry(async () => {
+				const stream = await this.bedrockClient.startConversationStream(
+					credentials,
+					requestInput,
+					abortController.signal,
+					bearerToken
+				);
+
+				logger.log("[Chat Request Handler] Processing stream events");
+				await this.streamProcessor.processStream(stream, trackingProgress, token);
+				logger.log("[Chat Request Handler] Finished processing stream");
+			});
 		} catch (err) {
+			// Don't log abort errors as failures — they're expected on cancellation
+			if (abortController.signal.aborted) {
+				logger.log("[Chat Request Handler] Request cancelled by user");
+				return;
+			}
+
 			const errorDetail = err instanceof Error ? { name: err.name, message: err.message } : String(err);
 			logger.error("[Chat Request Handler] Chat request failed", {
 				modelId: model.id,
@@ -177,6 +275,8 @@ export class ChatRequestHandler {
 			const userMsg = err instanceof Error ? err.name : "Unknown error";
 			vscode.window.showErrorMessage(`Bedrock chat request failed: ${userMsg}. Check the "Bedrock Chat" output channel for details.`);
 			throw err;
+		} finally {
+			cancellationDisposable.dispose();
 		}
 	}
 }
