@@ -80,10 +80,18 @@ export class ModelService {
 			const metadata = getModelMetadata(modelIdToUse);
 			const vision = m.inputModalities.includes("IMAGE");
 
+			if (metadata.isDefault) {
+				logger.warn(
+					`[Model Service] No static metadata for model "${modelIdToUse}" (${m.modelName}). ` +
+					`Using defaults: ${metadata.contextLength} context, ${metadata.maxOutputTokens} max output. ` +
+					`Update src/data/model-metadata.ts to add this model.`
+				);
+			}
+
 			const modelInfo: LanguageModelChatInformation = {
 				id: modelIdToUse,
 				name: m.modelName,
-				tooltip: `AWS Bedrock - ${m.providerName}${hasInferenceProfile ? ' (Cross-Region)' : ''}`,
+				tooltip: `AWS Bedrock - ${m.providerName}${hasInferenceProfile ? ' (Cross-Region)' : ''}${metadata.isDefault ? ' (unverified token limits)' : ''}`,
 				detail: `${m.providerName} • ${hasInferenceProfile ? 'Multi-Region' : region}`,
 				family: "bedrock",
 				version: "1.0.0",
