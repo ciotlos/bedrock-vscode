@@ -13,7 +13,7 @@ When a model is fetched from Bedrock but has no matching entry in the static fil
 2. Shows "(unverified token limits)" in the model tooltip
 3. Falls back to defaults: 200k context, 4096 max output, no thinking
 
-Check the "Bedrock Chat" output channel (View → Output → Bedrock Chat) to see these warnings.
+Check the "AWS Bedrock" output channel (View → Output → AWS Bedrock) to see these warnings.
 
 ## How to Update
 

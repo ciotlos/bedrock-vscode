@@ -30,8 +30,8 @@ Integrates AWS Bedrock foundation models into GitHub Copilot Chat for VS Code.
 | Thinking Budget Tokens | Max tokens for thinking (1024-32768) | `1024` |
 
 **Commands:**
-- **Manage AWS Bedrock Provider** — Interactive setup for auth, region, credentials
-- **Configure AWS Bedrock** — Opens VS Code settings
+- **AWS Bedrock: Manage Provider** — Interactive setup for auth, region, credentials
+- **AWS Bedrock: Open Settings** — Opens VS Code settings
 
 ## Documentation
 

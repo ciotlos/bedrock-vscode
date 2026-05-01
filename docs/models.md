@@ -40,7 +40,7 @@ AWS Bedrock's API does not expose token limits (context window, max output token
 
 When a model is fetched from Bedrock but has no matching static metadata:
 - Default values are used (200k context, 4096 max output, no thinking)
-- A warning is logged to the "Bedrock Chat" output channel
+- A warning is logged to the "AWS Bedrock" output channel
 - The model tooltip shows "(unverified token limits)"
 
 See the [model metadata maintenance guide](./model-metadata-maintenance.md) for how to update the static data.

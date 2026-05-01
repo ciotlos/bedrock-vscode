@@ -43,7 +43,7 @@ export async function manageSettings(
 			{ label: "Clear Settings", value: "clear" },
 		],
 		{
-			title: "Manage AWS Bedrock Provider",
+			title: "AWS Bedrock: Manage Provider",
 			placeHolder: "Choose an action",
 		}
 	);

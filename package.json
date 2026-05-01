@@ -54,7 +54,7 @@
 						"Use explicit AWS access keys",
 						"Use default credential provider chain"
 					],
-					"description": "Authentication method for AWS Bedrock. For 'api-key' and 'access-keys', use the 'Manage AWS Bedrock Provider' command (Ctrl+Shift+P) to enter credentials securely.",
+					"description": "Authentication method for AWS Bedrock. For 'api-key' and 'access-keys', use the 'Manage AWS Bedrock Provider' command from the Command Palette to enter credentials securely.",
 					"default": "default",
 					"title": "Authentication Method"
 				},
@@ -89,12 +89,11 @@
 		"commands": [
 			{
 				"command": "bedrock.manage",
-				"title": "Manage AWS Bedrock Provider"
+				"title": "AWS Bedrock: Manage Provider"
 			},
 			{
 				"command": "bedrock.configure",
-				"title": "Configure AWS Bedrock",
-				"category": "AWS Bedrock"
+				"title": "AWS Bedrock: Open Settings"
 			}
 		]
 	},

@@ -1,6 +1,6 @@
 # Authentication
 
-Four authentication methods are supported, configured via Settings or the "Manage AWS Bedrock Provider" command.
+Four authentication methods are supported, configured via Settings or the "AWS Bedrock: Manage Provider" command.
 
 ## 1. AWS Bedrock API Key (Recommended for Quick Start)
 
@@ -10,7 +10,7 @@ Generate a long-term or short-term API key from the [AWS Console](https://docs.a
 - **Short-term keys**: Valid for up to 12 hours, generated via Console or Python package
 - Format: `bedrock-api-key-[BASE64]`
 
-Set via Command Palette → "Manage AWS Bedrock Provider" → Set Authentication Method → API Key
+Set via Command Palette → "AWS Bedrock: Manage Provider" → Set Authentication Method → API Key
 
 The extension validates the key format on input and warns if it doesn't match the expected `bedrock-api-key-` prefix.
 
