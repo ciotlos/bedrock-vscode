@@ -8,7 +8,7 @@ import { logger } from "../logger";
 export class AuthenticationService {
 	constructor(private readonly configService: ConfigurationService) {}
 
-	async getAuthConfig(silent: boolean = false): Promise<AuthConfig | undefined> {
+	async getAuthConfig(silent = false): Promise<AuthConfig | undefined> {
 		const method = this.configService.getAuthMethod();
 
 		if (method === 'default') {
@@ -68,16 +68,26 @@ export class AuthenticationService {
 		return undefined;
 	}
 
-	getCredentials(authConfig: AuthConfig): AwsCredentialIdentity | Provider<AwsCredentialIdentity> | undefined {
-		if (authConfig.method !== 'api-key') {
-			delete process.env.AWS_BEARER_TOKEN_BEDROCK;
-		}
-
+	/**
+	 * Get the bearer token for API key auth, if applicable.
+	 * Returns undefined for non-api-key auth methods.
+	 */
+	getBearerToken(authConfig: AuthConfig): string | undefined {
 		if (authConfig.method === 'api-key') {
 			if (!authConfig.apiKey) {
 				throw new Error('API key is required for api-key authentication method');
 			}
-			process.env.AWS_BEARER_TOKEN_BEDROCK = authConfig.apiKey;
+			return authConfig.apiKey;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Get SDK credentials for non-bearer-token auth methods.
+	 * For api-key auth, returns undefined (bearer token is handled separately via BedrockClient).
+	 */
+	getCredentials(authConfig: AuthConfig): AwsCredentialIdentity | Provider<AwsCredentialIdentity> | undefined {
+		if (authConfig.method === 'api-key') {
 			logger.log("[Authentication Service] Using API key authentication");
 			return undefined;
 		}

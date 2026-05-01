@@ -16,7 +16,8 @@ export function activate(context: vscode.ExtensionContext) {
 	const authService = new AuthenticationService(configService);
 	const provider = new BedrockChatProvider(configService, authService);
 
-	vscode.lm.registerLanguageModelChatProvider("bedrock", provider);
+	const providerDisposable = vscode.lm.registerLanguageModelChatProvider("bedrock", provider);
+	context.subscriptions.push(providerDisposable);
 
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration((e) => {
@@ -37,19 +38,9 @@ export function activate(context: vscode.ExtensionContext) {
 			await vscode.commands.executeCommand('workbench.action.openSettings', 'languageModelChatProvider.bedrock');
 		})
 	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand("bedrock.selectModel", async () => {
-			const action = await vscode.window.showInformationMessage(
-				'Model selection is available in the VS Code chat interface. Click the model dropdown in the chat panel to select a Bedrock model.',
-				'Open Chat Settings'
-			);
-
-			if (action === 'Open Chat Settings') {
-				await vscode.commands.executeCommand('workbench.action.openSettings', 'chat');
-			}
-		})
-	);
 }
 
-export function deactivate() {}
+export function deactivate() {
+	// Clean up any residual bearer token from process.env
+	delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+}

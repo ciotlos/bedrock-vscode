@@ -5,8 +5,8 @@ import { logger } from "../logger";
  * Provides in-memory caching with configurable expiry times.
  */
 export class CacheService<T> {
-	private cache: Map<string, T> = new Map();
-	private expiry: number = 0;
+	private cache = new Map<string, T>();
+	private expiry = 0;
 	private readonly ttl: number;
 	private readonly name: string;
 

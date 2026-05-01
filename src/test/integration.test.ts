@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks require any casts */
+/* eslint-disable curly -- test code uses concise single-line conditionals */
 import * as assert from "assert";
 import * as vscode from "vscode";
 import * as path from "path";

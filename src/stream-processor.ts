@@ -1,18 +1,19 @@
 import * as vscode from "vscode";
+import type { ConverseStreamOutput } from "@aws-sdk/client-bedrock-runtime";
 import { ToolCallBufferManager } from "./tool-buffer";
 import { logger } from "./logger";
 
 export class StreamProcessor {
 	private toolBuffer: ToolCallBufferManager;
-	private thinkingBuffer: string = "";
-	private hasEmittedThinking: boolean = false;
+	private thinkingBuffer = "";
+	private hasEmittedThinking = false;
 
 	constructor() {
 		this.toolBuffer = new ToolCallBufferManager();
 	}
 
 	async processStream(
-		stream: AsyncIterable<any>,
+		stream: AsyncIterable<ConverseStreamOutput>,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart>,
 		token: vscode.CancellationToken
 	): Promise<void> {
@@ -49,6 +50,7 @@ export class StreamProcessor {
 						this.thinkingBuffer += thinkingText;
 						// Emit thinking part directly - LanguageModelThinkingPart is enabled via package.json
 						try {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any -- proposed API not yet in stable types
 							const ThinkingPart = (vscode as any).LanguageModelThinkingPart;
 							if (ThinkingPart) {
 								progress.report(new ThinkingPart(thinkingText));

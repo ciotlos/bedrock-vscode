@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import type {
 	BedrockMessage,
 	BedrockContentBlock,
-	BedrockTextBlock,
 	BedrockImageBlock,
 	BedrockToolUseBlock,
 	BedrockToolResultBlock,

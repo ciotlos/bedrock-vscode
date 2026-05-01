@@ -4,11 +4,11 @@ import { tryParseJSONObject } from "./converters/schema";
 import { logger } from "./logger";
 
 export class ToolCallBufferManager {
-	private buffers: Map<number, ToolCallBuffer> = new Map();
+	private buffers = new Map<number, ToolCallBuffer>();
 	private completedIndices = new Set<number>();
 	private emittedToolCallKeys = new Set<string>();
-	private hasText: boolean = false;
-	private firstTool: boolean = true;
+	private hasText = false;
+	private firstTool = true;
 
 	reset(): void {
 		this.buffers.clear();
@@ -49,7 +49,7 @@ export class ToolCallBufferManager {
 	async tryEmit(
 		index: number,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart>,
-		force: boolean = false
+		force = false
 	): Promise<void> {
 		const buf = this.buffers.get(index);
 		if (!buf || this.completedIndices.has(index)) {

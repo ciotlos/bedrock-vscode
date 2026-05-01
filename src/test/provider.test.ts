@@ -130,8 +130,8 @@ suite("Bedrock Chat Provider Extension", () => {
 			];
 			const result = convertMessages(messages, 'anthropic.claude-3-5-sonnet-20241022-v2:0');
 			assert.ok(result.messages.length > 0);
-	const hasToolUse = result.messages.some((m: any) => m.content.some((c: any) => "toolUse" in c));
-	const hasToolResult = result.messages.some((m: any) => m.content.some((c: any) => "toolResult" in c));
+			const hasToolUse = result.messages.some((m) => m.content.some((c) => "toolUse" in c));
+			const hasToolResult = result.messages.some((m) => m.content.some((c) => "toolResult" in c));
 			assert.ok(hasToolUse || hasToolResult);
 		});
 
