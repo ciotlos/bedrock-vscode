@@ -2,6 +2,55 @@
  * Static model metadata for known Bedrock models.
  * Replaces the runtime OpenRouter API call with bundled data.
  * Update this file when new models are added to Bedrock.
+ *
+ * ## Why this file exists
+ *
+ * AWS Bedrock's ListFoundationModels and GetFoundationModel APIs do NOT return
+ * token limits (context window, max output tokens) or capability flags like
+ * thinking support. These values only exist in AWS documentation pages.
+ * VS Code's LanguageModelChatInformation interface requires maxInputTokens and
+ * maxOutputTokens, so we must provide them from somewhere.
+ *
+ * ## How to update this file
+ *
+ * When new models appear in Bedrock, the extension logs a warning:
+ *   [Model Service] No static metadata for model "xxx". Using defaults.
+ *
+ * To add the missing model, an AI agent or maintainer should:
+ *
+ * 1. **Find the model's documentation page** on AWS:
+ *    - Base URL: https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html
+ *    - Each provider has a dedicated page, e.g.:
+ *      - Anthropic: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-messages.html
+ *      - Meta: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-meta.html
+ *      - Mistral: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-mistral.html
+ *      - Amazon Nova: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-nova.html
+ *      - DeepSeek: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-deepseek.html
+ *      - Cohere: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-cohere.html
+ *      - AI21: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-ai21.html
+ *
+ * 2. **Extract from the documentation page**:
+ *    - "Context window" or "Max input tokens" → contextLength
+ *    - "Max output tokens" or "Max completion tokens" → maxOutputTokens
+ *    - Whether "extended thinking" or "reasoning" is listed as supported → supportsThinking
+ *
+ * 3. **For thinking support specifically**, check:
+ *    https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-extended-thinking.html
+ *    This page lists all models that support extended thinking.
+ *
+ * 4. **Add an entry** to the MODEL_METADATA array below. Use a pattern string
+ *    that matches the model ID after stripping the region prefix (e.g., "us.").
+ *    More specific patterns should come before less specific ones.
+ *
+ * 5. **Run `npm run compile && npm run lint`** to verify.
+ *
+ * ## Pattern matching rules
+ *
+ * - Bedrock model IDs look like: `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+ * - The region prefix (`us.`) is stripped before matching
+ * - The pattern is checked via `normalizedId.includes(pattern)`
+ * - Order matters: more specific patterns must come first
+ *   (e.g., "claude-3-5-sonnet" before "claude-3-sonnet")
  */
 
 export interface ModelMetadata {
@@ -194,16 +243,16 @@ function normalizeModelId(modelId: string): string {
 /**
  * Get metadata for a Bedrock model by ID.
  * Uses prefix matching against the static metadata list.
- * Returns default values for unknown models.
+ * Returns default values for unknown models and flags the miss.
  */
-export function getModelMetadata(modelId: string): ModelMetadata {
+export function getModelMetadata(modelId: string): ModelMetadata & { isDefault: boolean } {
 	const normalized = normalizeModelId(modelId);
 
 	for (const entry of MODEL_METADATA) {
 		if (normalized.includes(entry.pattern)) {
-			return entry.metadata;
+			return { ...entry.metadata, isDefault: false };
 		}
 	}
 
-	return DEFAULT_METADATA;
+	return { ...DEFAULT_METADATA, isDefault: true };
 }
