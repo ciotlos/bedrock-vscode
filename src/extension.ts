@@ -6,7 +6,7 @@ import { manageSettings } from "./commands/manage-settings";
 import { logger } from "./logger";
 
 export function activate(context: vscode.ExtensionContext) {
-	const outputChannel = vscode.window.createOutputChannel("Bedrock Chat");
+	const outputChannel = vscode.window.createOutputChannel("AWS Bedrock");
 	logger.initialize(outputChannel, context.extensionMode);
 
 	context.subscriptions.push(outputChannel);

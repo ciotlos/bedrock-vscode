@@ -273,7 +273,7 @@ export class ChatRequestHandler {
 				error: errorDetail,
 			});
 			const userMsg = err instanceof Error ? err.name : "Unknown error";
-			vscode.window.showErrorMessage(`Bedrock chat request failed: ${userMsg}. Check the "Bedrock Chat" output channel for details.`);
+			vscode.window.showErrorMessage(`Bedrock request failed: ${userMsg}. Check the "AWS Bedrock" output channel for details.`);
 			throw err;
 		} finally {
 			cancellationDisposable.dispose();
