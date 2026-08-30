@@ -1,12 +1,10 @@
-import * as vscode from "vscode";
 import type { ConverseStreamOutput } from "@aws-sdk/client-bedrock-runtime";
-import { ToolCallBufferManager } from "./tool-buffer";
+import * as vscode from "vscode";
 import { logger } from "./logger";
+import { ToolCallBufferManager } from "./tool-buffer";
 
 export class StreamProcessor {
 	private toolBuffer: ToolCallBufferManager;
-	private thinkingBuffer = "";
-	private hasEmittedThinking = false;
 
 	constructor() {
 		this.toolBuffer = new ToolCallBufferManager();
@@ -18,8 +16,6 @@ export class StreamProcessor {
 		token: vscode.CancellationToken
 	): Promise<void> {
 		this.toolBuffer.reset();
-		this.thinkingBuffer = "";
-		this.hasEmittedThinking = false;
 
 		try {
 			for await (const event of stream) {
@@ -35,7 +31,7 @@ export class StreamProcessor {
 
 					if (toolUse) {
 						if (this.toolBuffer.shouldAddSpaceBeforeFirstTool()) {
-							progress.report(new vscode.LanguageModelTextPart(' '));
+							progress.report(new vscode.LanguageModelTextPart(" "));
 						}
 						this.toolBuffer.startToolCall(idx, toolUse.toolUseId || "", toolUse.name || "");
 						this.toolBuffer.markFirstToolEmitted();
@@ -47,14 +43,12 @@ export class StreamProcessor {
 					// Handle thinking content (Bedrock uses 'reasoningContent' not 'thinking')
 					if (delta?.reasoningContent?.text) {
 						const thinkingText = delta.reasoningContent.text;
-						this.thinkingBuffer += thinkingText;
 						// Emit thinking part directly - LanguageModelThinkingPart is enabled via package.json
 						try {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any -- proposed API not yet in stable types
+							// biome-ignore lint/suspicious/noExplicitAny: proposed VS Code API not yet in stable types
 							const ThinkingPart = (vscode as any).LanguageModelThinkingPart;
 							if (ThinkingPart) {
 								progress.report(new ThinkingPart(thinkingText));
-								this.hasEmittedThinking = true;
 							}
 						} catch (e) {
 							logger.warn("[StreamProcessor] LanguageModelThinkingPart not available", e);
@@ -81,8 +75,6 @@ export class StreamProcessor {
 			}
 		} finally {
 			this.toolBuffer.reset();
-			this.thinkingBuffer = "";
-			this.hasEmittedThinking = false;
 		}
 	}
 }

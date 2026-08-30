@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test mocks require any casts */
 /* eslint-disable curly -- test code uses concise single-line conditionals */
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
-import * as path from "path";
-import * as fs from "fs";
 import { BedrockChatProvider } from "../providers/bedrock-chat.provider";
-import { ConfigurationService } from "../services/configuration.service";
 import { AuthenticationService } from "../services/authentication.service";
+import { ConfigurationService } from "../services/configuration.service";
 
 /**
  * Load API key from .env file
@@ -17,14 +17,14 @@ function loadApiKeyFromEnv(): string | undefined {
 		return undefined;
 	}
 
-	const envContent = fs.readFileSync(envPath, 'utf-8');
-	const lines = envContent.split('\n');
+	const envContent = fs.readFileSync(envPath, "utf-8");
+	const lines = envContent.split("\n");
 	for (const line of lines) {
 		const trimmed = line.trim();
-		if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
-			const [key, ...valueParts] = trimmed.split('=');
-			if (key.trim() === 'AWS_BEARER_TOKEN_BEDROCK' && valueParts.length > 0) {
-				return valueParts.join('=').trim();
+		if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+			const [key, ...valueParts] = trimmed.split("=");
+			if (key.trim() === "AWS_BEARER_TOKEN_BEDROCK" && valueParts.length > 0) {
+				return valueParts.join("=").trim();
 			}
 		}
 	}
@@ -50,17 +50,23 @@ suite("Bedrock Integration", () => {
 		// Mock VS Code configuration to use API key from environment
 		const originalGetConfiguration = vscode.workspace.getConfiguration;
 		(vscode.workspace as any).getConfiguration = (section?: string) => {
-			if (section === 'languageModelChatProvider.bedrock') {
+			if (section === "languageModelChatProvider.bedrock") {
 				return {
 					get: (key: string) => {
-						if (key === 'region') return 'us-east-1';
-						if (key === 'authMethod') return 'api-key';
-						if (key === 'apiKey') return apiKey;
+						if (key === "region") {
+							return "us-east-1";
+						}
+						if (key === "authMethod") {
+							return "api-key";
+						}
+						if (key === "apiKey") {
+							return apiKey;
+						}
 						return undefined;
 					},
 					has: () => true,
 					inspect: () => undefined,
-					update: async () => {}
+					update: async () => {},
 				};
 			}
 			return originalGetConfiguration(section);
@@ -143,17 +149,23 @@ suite("Bedrock Integration", () => {
 		// Mock VS Code configuration to use API key from environment
 		const originalGetConfiguration = vscode.workspace.getConfiguration;
 		(vscode.workspace as any).getConfiguration = (section?: string) => {
-			if (section === 'languageModelChatProvider.bedrock') {
+			if (section === "languageModelChatProvider.bedrock") {
 				return {
 					get: (key: string) => {
-						if (key === 'region') return 'us-east-1';
-						if (key === 'authMethod') return 'api-key';
-						if (key === 'apiKey') return apiKey;
+						if (key === "region") {
+							return "us-east-1";
+						}
+						if (key === "authMethod") {
+							return "api-key";
+						}
+						if (key === "apiKey") {
+							return apiKey;
+						}
 						return undefined;
 					},
 					has: () => true,
 					inspect: () => undefined,
-					update: async () => {}
+					update: async () => {},
 				};
 			}
 			return originalGetConfiguration(section);
@@ -189,21 +201,21 @@ suite("Bedrock Integration", () => {
 						operation: {
 							type: "string",
 							enum: ["add", "subtract", "multiply", "divide"],
-							description: "The arithmetic operation to perform"
+							description: "The arithmetic operation to perform",
 						},
 						a: {
 							type: "number",
-							description: "First number"
+							description: "First number",
 						},
 						b: {
 							type: "number",
-							description: "Second number"
-						}
+							description: "Second number",
+						},
 					},
 					required: ["operation", "a", "b"],
-					additionalProperties: false
-				}
-			}
+					additionalProperties: false,
+				},
+			},
 		];
 
 		// Step 3: Send message that requires tool use
@@ -285,10 +297,9 @@ suite("Bedrock Integration", () => {
 			{
 				role: vscode.LanguageModelChatMessageRole.User,
 				content: [
-					new vscode.LanguageModelToolResultPart(
-						toolCall.callId,
-						[new vscode.LanguageModelTextPart(result.toString())]
-					)
+					new vscode.LanguageModelToolResultPart(toolCall.callId, [
+						new vscode.LanguageModelTextPart(result.toString()),
+					]),
 				],
 				name: undefined,
 			},
@@ -334,19 +345,29 @@ suite("Bedrock Integration", () => {
 		// Mock VS Code configuration with thinking enabled
 		const originalGetConfiguration = vscode.workspace.getConfiguration;
 		(vscode.workspace as any).getConfiguration = (section?: string) => {
-			if (section === 'languageModelChatProvider.bedrock') {
+			if (section === "languageModelChatProvider.bedrock") {
 				return {
 					get: (key: string) => {
-						if (key === 'region') return 'us-east-1';
-						if (key === 'authMethod') return 'api-key';
-						if (key === 'apiKey') return apiKey;
-						if (key === 'thinkingEnabled') return true;
-						if (key === 'thinkingBudgetTokens') return 2048;
+						if (key === "region") {
+							return "us-east-1";
+						}
+						if (key === "authMethod") {
+							return "api-key";
+						}
+						if (key === "apiKey") {
+							return apiKey;
+						}
+						if (key === "thinkingEnabled") {
+							return true;
+						}
+						if (key === "thinkingBudgetTokens") {
+							return 2048;
+						}
 						return undefined;
 					},
 					has: () => true,
 					inspect: () => undefined,
-					update: async () => {}
+					update: async () => {},
 				};
 			}
 			return originalGetConfiguration(section);
@@ -364,8 +385,8 @@ suite("Bedrock Integration", () => {
 		);
 
 		// Step 2: Find Claude 3.7 Sonnet (thinking-capable model)
-		const claudeSonnet37 = models.find((m: any) =>
-			m.id.includes("claude-3-7-sonnet") || m.name.includes("Claude 3.7 Sonnet")
+		const claudeSonnet37 = models.find(
+			(m: any) => m.id.includes("claude-3-7-sonnet") || m.name.includes("Claude 3.7 Sonnet")
 		);
 
 		if (!claudeSonnet37) {
@@ -385,9 +406,9 @@ suite("Bedrock Integration", () => {
 				content: [
 					new vscode.LanguageModelTextPart(
 						"Solve this step by step: A train travels 120 kilometers in 2 hours. " +
-						"If it maintains the same speed, how far will it travel in 5 hours? " +
-						"Show your reasoning process."
-					)
+							"If it maintains the same speed, how far will it travel in 5 hours? " +
+							"Show your reasoning process."
+					),
 				],
 				name: undefined,
 			},
@@ -407,9 +428,12 @@ suite("Bedrock Integration", () => {
 					if (part instanceof vscode.LanguageModelTextPart) {
 						textParts.push(part);
 						finalResponse += part.value;
-					} else if ('LanguageModelThinkingPart' in vscode && part instanceof (vscode as any).LanguageModelThinkingPart) {
+					} else if (
+						"LanguageModelThinkingPart" in vscode &&
+						part instanceof (vscode as any).LanguageModelThinkingPart
+					) {
 						thinkingParts.push(part);
-						const thinkingValue = (part as any).value || '';
+						const thinkingValue = (part as any).value || "";
 						thinkingContent += thinkingValue;
 					}
 				},

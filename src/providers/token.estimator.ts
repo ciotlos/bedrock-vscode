@@ -1,5 +1,5 @@
-import * as vscode from "vscode";
 import type { LanguageModelChatInformation, LanguageModelChatMessage } from "vscode";
+import * as vscode from "vscode";
 
 /**
  * Handles token counting for messages and text.
@@ -9,10 +9,7 @@ export class TokenEstimator {
 	/**
 	 * Estimate token count for text or message
 	 */
-	estimateTokens(
-		model: LanguageModelChatInformation,
-		text: string | LanguageModelChatMessage
-	): number {
+	estimateTokens(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage): number {
 		if (typeof text === "string") {
 			return Math.ceil(text.length / 4);
 		} else {
@@ -45,7 +42,9 @@ export class TokenEstimator {
 	 * Estimate token count for tool configuration
 	 */
 	estimateToolTokens(
-		toolConfig: { tools: Array<{ toolSpec: { name: string; description?: string; inputSchema: { json: object } } }> } | undefined
+		toolConfig:
+			| { tools: Array<{ toolSpec: { name: string; description?: string; inputSchema: { json: object } } }> }
+			| undefined
 	): number {
 		if (!toolConfig || toolConfig.tools.length === 0) {
 			return 0;

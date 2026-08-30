@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { AuthMethod } from "../types";
+import type { AuthMethod, ManualModel } from "../types";
 
 const SECRET_KEY_API_KEY = "bedrock.apiKey";
 const SECRET_KEY_ACCESS_KEY_ID = "bedrock.accessKeyId";
@@ -7,7 +7,7 @@ const SECRET_KEY_SECRET_ACCESS_KEY = "bedrock.secretAccessKey";
 const SECRET_KEY_SESSION_TOKEN = "bedrock.sessionToken";
 
 export class ConfigurationService {
-	private readonly configSection = 'languageModelChatProvider.bedrock';
+	private readonly configSection = "languageModelChatProvider.bedrock";
 	private secretStorage: vscode.SecretStorage | undefined;
 
 	setSecretStorage(storage: vscode.SecretStorage): void {
@@ -16,37 +16,37 @@ export class ConfigurationService {
 
 	getRegion(): string {
 		const config = vscode.workspace.getConfiguration(this.configSection);
-		return config.get<string>('region') ?? "us-east-1";
+		return config.get<string>("region") ?? "us-east-1";
 	}
 
 	getAuthMethod(): AuthMethod {
 		const config = vscode.workspace.getConfiguration(this.configSection);
-		return config.get<AuthMethod>('authMethod') ?? 'default';
+		return config.get<AuthMethod>("authMethod") ?? "default";
 	}
 
 	getProfile(): string | undefined {
 		const config = vscode.workspace.getConfiguration(this.configSection);
-		return config.get<string>('profile');
+		return config.get<string>("profile");
 	}
 
 	isThinkingEnabled(): boolean {
 		const config = vscode.workspace.getConfiguration(this.configSection);
-		return config.get<boolean>('thinkingEnabled', false);
+		return config.get<boolean>("thinkingEnabled", false);
 	}
 
 	getThinkingBudgetTokens(): number {
 		const config = vscode.workspace.getConfiguration(this.configSection);
-		const budget = config.get<number>('thinkingBudgetTokens', 1024);
+		const budget = config.get<number>("thinkingBudgetTokens", 1024);
 		return Math.max(1024, budget);
 	}
 
-	getThinkingConfig(): { type: 'enabled' | 'disabled'; budget_tokens?: number } | undefined {
+	getThinkingConfig(): { type: "enabled" | "disabled"; budget_tokens?: number } | undefined {
 		if (!this.isThinkingEnabled()) {
 			return undefined;
 		}
 
 		return {
-			type: 'enabled',
+			type: "enabled",
 			budget_tokens: this.getThinkingBudgetTokens(),
 		};
 	}
@@ -104,5 +104,22 @@ export class ConfigurationService {
 		await this.deleteAccessKeyId();
 		await this.deleteSecretAccessKey();
 		await this.deleteSessionToken();
+	}
+
+	/**
+	 * Get user-provided inference profile overrides.
+	 * Maps bare model IDs to full inference profile ARNs or IDs.
+	 */
+	getInferenceProfileOverrides(): Record<string, string> {
+		const config = vscode.workspace.getConfiguration(this.configSection);
+		return config.get<Record<string, string>>("inferenceProfileOverrides") ?? {};
+	}
+
+	/**
+	 * Get manually-declared models used as a fallback or supplement to discovery.
+	 */
+	getManualModels(): ManualModel[] {
+		const config = vscode.workspace.getConfiguration(this.configSection);
+		return config.get<ManualModel[]>("manualModels") ?? [];
 	}
 }

@@ -7,9 +7,11 @@ import type {
 	LanguageModelResponsePart,
 	Progress,
 } from "vscode";
+import * as vscode from "vscode";
+import { convertMessages } from "../converters/messages";
+import type { AuthenticationService } from "../services/authentication.service";
+import type { ConfigurationService } from "../services/configuration.service";
 import { ModelService } from "../services/model.service";
-import { AuthenticationService } from "../services/authentication.service";
-import { ConfigurationService } from "../services/configuration.service";
 import { ChatRequestHandler } from "./chat-request.handler";
 import { TokenEstimator } from "./token.estimator";
 
@@ -22,10 +24,7 @@ export class BedrockChatProvider implements LanguageModelChatProvider {
 	private chatRequestHandler: ChatRequestHandler;
 	private tokenEstimator: TokenEstimator;
 
-	constructor(
-		private readonly configService: ConfigurationService,
-		private readonly authService: AuthenticationService
-	) {
+	constructor(configService: ConfigurationService, authService: AuthenticationService) {
 		this.modelService = new ModelService(authService, configService);
 		this.chatRequestHandler = new ChatRequestHandler(this.modelService, authService, configService);
 		this.tokenEstimator = new TokenEstimator();
@@ -73,13 +72,32 @@ export class BedrockChatProvider implements LanguageModelChatProvider {
 	}
 
 	/**
-	 * Estimate token count for text or message
+	 * Count tokens using the model's native Bedrock tokenizer, falling back to estimation.
 	 */
 	async provideTokenCount(
 		model: LanguageModelChatInformation,
 		text: string | LanguageModelChatMessage,
 		_token: CancellationToken
 	): Promise<number> {
+		try {
+			const vsMsg: LanguageModelChatMessage =
+				typeof text === "string"
+					? {
+							role: vscode.LanguageModelChatMessageRole.User,
+							content: [new vscode.LanguageModelTextPart(text)],
+							name: undefined,
+						}
+					: text;
+			const { messages } = convertMessages([vsMsg], model.id);
+			if (messages.length > 0) {
+				const native = await this.modelService.countTokens(model.id, messages as import("../types").BedrockMessage[]);
+				if (native !== undefined) {
+					return native;
+				}
+			}
+		} catch {
+			// fall through to estimate
+		}
 		return this.tokenEstimator.estimateTokens(model, text);
 	}
 }

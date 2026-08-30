@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
+import type { ConfigurationService } from "../services/configuration.service";
 import type { AuthMethod } from "../types";
-import { ConfigurationService } from "../services/configuration.service";
 
 const REGIONS = [
 	"us-east-1",
@@ -29,10 +29,8 @@ function getConfigTarget(): vscode.ConfigurationTarget {
 		: vscode.ConfigurationTarget.Global;
 }
 
-export async function manageSettings(
-	configService: ConfigurationService
-): Promise<void> {
-	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
+export async function manageSettings(configService: ConfigurationService): Promise<void> {
+	const config = vscode.workspace.getConfiguration("languageModelChatProvider.bedrock");
 	const existingRegion = config.get<string>("region") ?? "us-east-1";
 	const existingAuthMethod = config.get<AuthMethod>("authMethod") ?? "default";
 
@@ -89,7 +87,7 @@ async function handleAuthMethodSelection(configService: ConfigurationService): P
 		return;
 	}
 
-	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
+	const config = vscode.workspace.getConfiguration("languageModelChatProvider.bedrock");
 	await clearAuthSettings(configService);
 	await config.update("authMethod", method.value, getConfigTarget());
 
@@ -127,7 +125,7 @@ async function handleApiKeySetup(configService: ConfigurationService): Promise<v
 	if (!trimmed.startsWith("bedrock-api-key-")) {
 		const proceed = await vscode.window.showWarningMessage(
 			"This doesn't look like a Bedrock API key (expected prefix 'bedrock-api-key-'). " +
-			"Make sure you're not pasting an AWS secret access key here.",
+				"Make sure you're not pasting an AWS secret access key here.",
 			"Save Anyway",
 			"Cancel"
 		);
@@ -157,7 +155,7 @@ async function handleProfileSetup(): Promise<void> {
 		return;
 	}
 
-	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
+	const config = vscode.workspace.getConfiguration("languageModelChatProvider.bedrock");
 	await config.update("profile", profile.trim(), getConfigTarget());
 	vscode.window.showInformationMessage(`AWS profile set to '${profile.trim()}'.`);
 }
@@ -209,7 +207,7 @@ async function handleAccessKeysSetup(configService: ConfigurationService): Promi
 	await configService.setAccessKeyId(accessKeyId.trim());
 	await configService.setSecretAccessKey(secretAccessKey.trim());
 
-	if (sessionToken && sessionToken.trim()) {
+	if (sessionToken?.trim()) {
 		await configService.setSessionToken(sessionToken.trim());
 	}
 
@@ -218,13 +216,13 @@ async function handleAccessKeysSetup(configService: ConfigurationService): Promi
 
 async function clearAuthSettings(configService: ConfigurationService): Promise<void> {
 	await configService.deleteAllSecrets();
-	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
+	const config = vscode.workspace.getConfiguration("languageModelChatProvider.bedrock");
 	await config.update("profile", undefined, getConfigTarget());
 }
 
 async function clearAllSettings(configService: ConfigurationService): Promise<void> {
 	await clearAuthSettings(configService);
-	const config = vscode.workspace.getConfiguration('languageModelChatProvider.bedrock');
+	const config = vscode.workspace.getConfiguration("languageModelChatProvider.bedrock");
 	await config.update("authMethod", undefined, getConfigTarget());
 	await config.update("region", undefined, getConfigTarget());
 }

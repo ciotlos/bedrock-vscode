@@ -1,0 +1,83 @@
+name: Sync Bedrock Model Metadata
+
+# Runs weekly to detect new or retired Bedrock models.
+# When drift is found it opens (or updates) a PR with best-guess entries
+# for new models and DEPRECATED comments on stale patterns.
+#
+# Required secrets:
+#   AWS_ROLE_ARN  -- ARN of an IAM role with bedrock:ListFoundationModels
+#                    (OIDC, preferred — no long-lived secrets)
+#
+# Access-key alternative: comment out the OIDC step and uncomment the
+# access-key step below, then add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+# as repository secrets.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # required for OIDC
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # Skip postinstall (downloads VS Code API types) -- not needed here
+      - run: npm ci --ignore-scripts
+
+      # OIDC auth (preferred): create a role in your AWS account, attach a
+      # policy with only `bedrock:ListFoundationModels`, add its ARN as
+      # the secret AWS_ROLE_ARN, then set the GitHub OIDC provider as a
+      # trusted entity for that role.
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # Access-key fallback -- uncomment and comment out the OIDC step above:
+      # - name: Configure AWS credentials (access keys)
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: us-east-1
+
+      - name: Check and update model metadata
+        id: check
+        run: node scripts/check-models.mjs --update
+
+      - name: Set date for commit message
+        run: echo "TODAY=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+
+      - name: Open PR if metadata changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync Bedrock model metadata (${{ env.TODAY }})"
+          title: "chore: sync Bedrock model metadata (${{ env.TODAY }})"
+          body: |
+            Automated weekly sync — new or retired Bedrock models detected.
+
+            **Review before merging:**
+
+            - New entries carry best-guess token limits inferred from model naming conventions.
+              Verify them against the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) before shipping.
+            - Patterns marked `DEPRECATED` may have been renamed rather than removed — check the AWS console before deleting.
+
+            [View the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          branch: chore/sync-bedrock-models
+          delete-branch: true
+          labels: "automated,model-sync"
+          base: main

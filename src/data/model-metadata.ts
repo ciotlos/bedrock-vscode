@@ -235,9 +235,7 @@ const DEFAULT_METADATA: ModelMetadata = {
  * Strips region prefixes like "us.", "eu.", "ap.", etc.
  */
 function normalizeModelId(modelId: string): string {
-	return modelId
-		.replace(/^(us|eu|ap|apac|global)\./i, "")
-		.toLowerCase();
+	return modelId.replace(/^(us|eu|ap|apac|global)\./i, "").toLowerCase();
 }
 
 /**

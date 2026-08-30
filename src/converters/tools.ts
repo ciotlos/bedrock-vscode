@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import type { BedrockToolConfig, BedrockToolSpec } from "../types";
-import { sanitizeSchema, sanitizeFunctionName } from "./schema";
-import { getModelProfile } from "../profiles";
 import { logger } from "../logger";
+import { getModelProfile } from "../profiles";
+import type { BedrockToolConfig, BedrockToolSpec } from "../types";
+import { sanitizeFunctionName, sanitizeSchema } from "./schema";
 
 export function convertTools(
 	options: vscode.LanguageModelChatRequestHandleOptions,

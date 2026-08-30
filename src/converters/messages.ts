@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
-import type {
-	BedrockMessage,
-	BedrockContentBlock,
-	BedrockImageBlock,
-	BedrockToolUseBlock,
-	BedrockToolResultBlock,
-	BedrockSystemBlock,
-} from "../types";
 import { logger } from "../logger";
 import { getModelProfile } from "../profiles";
+import type {
+	BedrockContentBlock,
+	BedrockImageBlock,
+	BedrockMessage,
+	BedrockSystemBlock,
+	BedrockToolResultBlock,
+	BedrockToolUseBlock,
+} from "../types";
 
 function isToolResultPart(value: unknown): value is { callId: string; content?: ReadonlyArray<unknown> } {
 	if (!value || typeof value !== "object") {
@@ -30,6 +30,44 @@ function collectToolResultText(pr: { content?: ReadonlyArray<unknown> }): string
 		}
 	}
 	return text;
+}
+
+/**
+ * Resolve an image's format, preferring actual bytes over the reported mimeType.
+ * VS Code's browser attachment can report an incorrect mimeType (e.g. image/jpeg for
+ * PNG data), which Bedrock rejects with a ValidationException. When leading magic bytes
+ * identify a known format we trust them; otherwise we fall back to the mimeType subtype
+ * (normalizing jpg -> jpeg). Returns null when nothing determinable.
+ */
+export function detectImageFormat(bytes: Uint8Array | undefined, mimeType: string): string | null {
+	if (bytes instanceof Uint8Array && bytes.length >= 12) {
+		if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+			return "png";
+		}
+		if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+			return "jpeg";
+		}
+		if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+			return "gif";
+		}
+		if (
+			bytes[0] === 0x52 &&
+			bytes[1] === 0x49 &&
+			bytes[2] === 0x46 &&
+			bytes[3] === 0x46 &&
+			bytes[8] === 0x57 &&
+			bytes[9] === 0x45 &&
+			bytes[10] === 0x42 &&
+			bytes[11] === 0x50
+		) {
+			return "webp";
+		}
+	}
+	const subtype = mimeType.split("/")[1]?.toLowerCase();
+	if (!subtype) {
+		return null;
+	}
+	return subtype === "jpg" ? "jpeg" : subtype;
 }
 
 export function convertMessages(
@@ -54,30 +92,34 @@ export function convertMessages(
 
 		for (const part of m.content ?? []) {
 			if (part instanceof vscode.LanguageModelTextPart) {
-				if (m.role === vscode.LanguageModelChatMessageRole.User ||
-					m.role === vscode.LanguageModelChatMessageRole.Assistant) {
+				if (
+					m.role === vscode.LanguageModelChatMessageRole.User ||
+					m.role === vscode.LanguageModelChatMessageRole.Assistant
+				) {
 					textParts.push(part.value);
 				} else {
 					systemBlocks.push({ text: part.value });
 				}
-			} else if (typeof part === 'object' && part !== null && 'mimeType' in part && 'data' in part) {
+			} else if (typeof part === "object" && part !== null && "mimeType" in part && "data" in part) {
 				const dataPart = part as { mimeType: string; data: Uint8Array };
-				if (dataPart.mimeType.startsWith('image/')) {
-					const mimeTypeParts = dataPart.mimeType.split('/');
-					const format = mimeTypeParts[1]?.toLowerCase();
+				if (dataPart.mimeType.startsWith("image/")) {
+					const actualFormat = detectImageFormat(dataPart.data, dataPart.mimeType);
+					logger.log(
+						`[Message Converter] Image detected - mimeType: ${dataPart.mimeType}, actual format: ${actualFormat}`
+					);
 
-					if (format === 'png' || format === 'jpeg' || format === 'gif' || format === 'webp') {
+					if (actualFormat === "png" || actualFormat === "jpeg" || actualFormat === "gif" || actualFormat === "webp") {
 						imageBlocks.push({
 							image: {
-								format: format as "png" | "jpeg" | "gif" | "webp",
+								format: actualFormat as "png" | "jpeg" | "gif" | "webp",
 								source: {
 									bytes: dataPart.data,
 								},
 							},
 						});
-						logger.log(`[Message Converter] Added image block with format: ${format}`);
+						logger.log(`[Message Converter] Added image block with format: ${actualFormat}`);
 					} else {
-						logger.warn(`[Message Converter] Unsupported image format: ${format}`);
+						logger.warn(`[Message Converter] Unsupported image format: ${actualFormat}`);
 					}
 				}
 			} else if (part instanceof vscode.LanguageModelToolCallPart) {
@@ -94,7 +136,7 @@ export function convertMessages(
 				logger.log("[Message Converter] Tool result text length:", resultText.length, "for ID:", resultPart.callId);
 
 				let content: Array<{ text: string } | { json: Record<string, unknown> }>;
-				if (profile.toolResultFormat === 'json') {
+				if (profile.toolResultFormat === "json") {
 					try {
 						const parsed = JSON.parse(resultText);
 						content = [{ json: parsed }];
@@ -132,9 +174,10 @@ export function convertMessages(
 			pendingToolResults.push(...toolResults);
 
 			const nextMessage = i + 1 < messages.length ? messages[i + 1] : undefined;
-			const nextIsToolResultOnly = nextMessage &&
+			const nextIsToolResultOnly =
+				nextMessage &&
 				nextMessage.role === vscode.LanguageModelChatMessageRole.User &&
-				nextMessage.content.every(p => isToolResultPart(p));
+				nextMessage.content.every((p) => isToolResultPart(p));
 
 			if (!nextIsToolResultOnly && pendingToolResults.length > 0) {
 				bedrockMessages.push({ role: "user", content: pendingToolResults });

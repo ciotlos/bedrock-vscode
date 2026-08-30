@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+import type { ConverseStreamCommandInput } from "@aws-sdk/client-bedrock-runtime";
 import type {
 	CancellationToken,
 	LanguageModelChatInformation,
@@ -7,16 +7,17 @@ import type {
 	LanguageModelResponsePart,
 	Progress,
 } from "vscode";
-import { ConverseStreamCommandInput } from "@aws-sdk/client-bedrock-runtime";
+import * as vscode from "vscode";
 import { BedrockClient } from "../clients/bedrock.client";
-import { StreamProcessor } from "../stream-processor";
 import { convertMessages } from "../converters/messages";
 import { convertTools } from "../converters/tools";
-import { validateRequest } from "../validation";
 import { logger } from "../logger";
-import { ModelService } from "../services/model.service";
-import { AuthenticationService } from "../services/authentication.service";
-import { ConfigurationService } from "../services/configuration.service";
+import { getModelProfile } from "../profiles";
+import type { AuthenticationService } from "../services/authentication.service";
+import type { ConfigurationService } from "../services/configuration.service";
+import type { ModelService } from "../services/model.service";
+import { StreamProcessor } from "../stream-processor";
+import { validateRequest } from "../validation";
 import { TokenEstimator } from "./token.estimator";
 
 /** Maximum number of retries for transient errors. */
@@ -85,18 +86,18 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = MAX_RETRIES): Pro
  */
 function classifyPart(p: unknown): string {
 	if (p instanceof vscode.LanguageModelTextPart) {
-		return 'text';
+		return "text";
 	}
 	if (p instanceof vscode.LanguageModelToolCallPart) {
-		return 'toolCall';
+		return "toolCall";
 	}
-	if (typeof p === 'object' && p !== null && 'mimeType' in p) {
+	if (typeof p === "object" && p !== null && "mimeType" in p) {
 		const mimed = p as { mimeType?: string };
-		if (mimed.mimeType?.startsWith('image/')) {
-			return 'image';
+		if (mimed.mimeType?.startsWith("image/")) {
+			return "image";
 		}
 	}
-	return 'toolResult';
+	return "toolResult";
 }
 
 /**
@@ -165,7 +166,7 @@ export class ChatRequestHandler {
 
 			logger.log("[Chat Request Handler] Converting messages, count:", messages.length);
 			messages.forEach((msg, idx) => {
-				const partTypes = msg.content.map(p => classifyPart(p));
+				const partTypes = msg.content.map((p) => classifyPart(p));
 				logger.log(`[Chat Request Handler] Message ${idx} (${msg.role}):`, partTypes);
 			});
 
@@ -174,16 +175,23 @@ export class ChatRequestHandler {
 
 			logger.log("[Chat Request Handler] Converted to Bedrock messages:", converted.messages.length);
 			converted.messages.forEach((msg, idx) => {
-				const contentTypes = msg.content.map(c => {
-					if ('text' in c) { return 'text'; }
-					if ('image' in c) { return 'image'; }
-					if ('toolUse' in c) { return 'toolUse'; }
-					return 'toolResult';
+				const contentTypes = msg.content.map((c) => {
+					if ("text" in c) {
+						return "text";
+					}
+					if ("image" in c) {
+						return "image";
+					}
+					if ("toolUse" in c) {
+						return "toolUse";
+					}
+					return "toolResult";
 				});
 				logger.log(`[Chat Request Handler] Bedrock message ${idx} (${msg.role}):`, contentTypes);
 			});
 
 			const toolConfig = convertTools(options, model.id);
+			const profile = getModelProfile(model.id);
 
 			if (options.tools && options.tools.length > 128) {
 				throw new Error("Cannot have more than 128 tools per request.");
@@ -209,10 +217,20 @@ export class ChatRequestHandler {
 				messages: converted.messages as ConverseStreamCommandInput["messages"],
 				inferenceConfig: {
 					maxTokens: Math.min(options.modelOptions?.max_tokens || 4096, model.maxOutputTokens),
-					// Temperature must be 1.0 when thinking is enabled, otherwise use user preference or default
-					temperature: (thinkingConfig && supportsThinking) ? 1.0 : (options.modelOptions?.temperature ?? 0.7),
+					// Temperature must be omitted for models that have deprecated it (e.g. Claude 4+).
+					// When thinking is enabled and the model supports it, temperature must be 1.0.
+					...(profile.supportsTemperature && {
+						temperature: thinkingConfig && supportsThinking ? 1.0 : (options.modelOptions?.temperature ?? 0.7),
+					}),
 				},
 			};
+
+			// Substitute the invocation target (user override ARN or system inference profile)
+			// at the wire level. The bare model.id is kept above so capability detection works.
+			const invocationTarget = this.modelService.getInvocationTarget(model.id);
+			if (invocationTarget) {
+				requestInput.modelId = invocationTarget;
+			}
 
 			if (converted.system.length > 0) {
 				requestInput.system = converted.system as ConverseStreamCommandInput["system"];
@@ -220,14 +238,17 @@ export class ChatRequestHandler {
 
 			if (options.modelOptions) {
 				const mo = options.modelOptions as Record<string, unknown>;
+				// inferenceConfig is always initialised in the requestInput literal above
+				const ic = requestInput.inferenceConfig ?? {};
 				if (typeof mo.top_p === "number") {
-					requestInput.inferenceConfig!.topP = mo.top_p;
+					ic.topP = mo.top_p;
 				}
 				if (typeof mo.stop === "string") {
-					requestInput.inferenceConfig!.stopSequences = [mo.stop];
+					ic.stopSequences = [mo.stop];
 				} else if (Array.isArray(mo.stop)) {
-					requestInput.inferenceConfig!.stopSequences = mo.stop as string[];
+					ic.stopSequences = mo.stop as string[];
 				}
+				requestInput.inferenceConfig = ic;
 			}
 
 			if (toolConfig) {
@@ -273,7 +294,9 @@ export class ChatRequestHandler {
 				error: errorDetail,
 			});
 			const userMsg = err instanceof Error ? err.name : "Unknown error";
-			vscode.window.showErrorMessage(`Bedrock request failed: ${userMsg}. Check the "AWS Bedrock" output channel for details.`);
+			vscode.window.showErrorMessage(
+				`Bedrock request failed: ${userMsg}. Check the "AWS Bedrock" output channel for details.`
+			);
 			throw err;
 		} finally {
 			cancellationDisposable.dispose();

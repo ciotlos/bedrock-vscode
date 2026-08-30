@@ -10,7 +10,12 @@ export interface ModelProfile {
 	/**
 	 * Format to use for tool result content ('text' or 'json')
 	 */
-	toolResultFormat: 'text' | 'json';
+	toolResultFormat: "text" | "json";
+	/**
+	 * Whether the model supports the temperature inference parameter.
+	 * Claude 4+ models have deprecated temperature on the Bedrock Converse API.
+	 */
+	supportsTemperature: boolean;
 }
 
 /**
@@ -21,11 +26,12 @@ export interface ModelProfile {
 export function getModelProfile(modelId: string): ModelProfile {
 	const defaultProfile: ModelProfile = {
 		supportsToolChoice: false,
-		toolResultFormat: 'text',
+		toolResultFormat: "text",
+		supportsTemperature: true,
 	};
 
 	// Split the model name into parts
-	let parts = modelId.split('.');
+	let parts = modelId.split(".");
 
 	// Handle regional prefixes (e.g. "us.anthropic.claude-...")
 	if (parts.length > 2 && parts[0].length === 2) {
@@ -40,33 +46,39 @@ export function getModelProfile(modelId: string): ModelProfile {
 
 	// Provider-specific profiles
 	switch (provider) {
-		case 'anthropic':
-			// Claude models support tool choice
+		case "anthropic": {
+			// Claude 4+ models have deprecated the temperature parameter
+			const claudeVersionMatch = modelId.match(/claude-(?:opus|sonnet|haiku)-(\d+)/);
+			const isClaudeV4OrNewer = claudeVersionMatch !== null && Number(claudeVersionMatch[1]) >= 4;
 			return {
 				supportsToolChoice: true,
-				toolResultFormat: 'text',
+				toolResultFormat: "text",
+				supportsTemperature: !isClaudeV4OrNewer,
 			};
+		}
 
-		case 'mistral':
+		case "mistral":
 			// Mistral models require JSON format for tool results
 			return {
 				supportsToolChoice: false,
-				toolResultFormat: 'json',
+				toolResultFormat: "json",
+				supportsTemperature: true,
 			};
 
-		case 'amazon':
+		case "amazon":
 			// Amazon Nova models support tool choice
-			if (modelId.includes('nova')) {
+			if (modelId.includes("nova")) {
 				return {
 					supportsToolChoice: true,
-					toolResultFormat: 'text',
+					toolResultFormat: "text",
+					supportsTemperature: true,
 				};
 			}
 			return defaultProfile;
 
-		case 'cohere':
-		case 'meta':
-		case 'ai21':
+		case "cohere":
+		case "meta":
+		case "ai21":
 			// Older models don't support tool choice
 			return defaultProfile;
 

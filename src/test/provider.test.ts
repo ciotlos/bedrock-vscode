@@ -1,13 +1,13 @@
-import * as assert from "assert";
+import * as assert from "node:assert";
 import * as vscode from "vscode";
-import { BedrockChatProvider } from "../providers/bedrock-chat.provider";
-import { ConfigurationService } from "../services/configuration.service";
-import { AuthenticationService } from "../services/authentication.service";
 import { convertMessages } from "../converters/messages";
-import { convertTools } from "../converters/tools";
-import { validateRequest, validateTools } from "../validation";
 import { tryParseJSONObject } from "../converters/schema";
+import { convertTools } from "../converters/tools";
+import { BedrockChatProvider } from "../providers/bedrock-chat.provider";
+import { AuthenticationService } from "../services/authentication.service";
+import { ConfigurationService } from "../services/configuration.service";
 import { ToolCallBufferManager } from "../tool-buffer";
+import { validateRequest, validateTools } from "../validation";
 
 suite("Bedrock Chat Provider Extension", () => {
 	suite("provider", () => {
@@ -115,7 +115,7 @@ suite("Bedrock Chat Provider Extension", () => {
 					name: undefined,
 				},
 			];
-			const result = convertMessages(messages, 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+			const result = convertMessages(messages, "anthropic.claude-3-5-sonnet-20241022-v2:0");
 			assert.equal(result.messages.length, 2);
 			assert.equal(result.messages[0].role, "user");
 			assert.equal(result.messages[1].role, "assistant");
@@ -128,7 +128,7 @@ suite("Bedrock Chat Provider Extension", () => {
 				{ role: vscode.LanguageModelChatMessageRole.Assistant, content: [toolCall], name: undefined },
 				{ role: vscode.LanguageModelChatMessageRole.User, content: [toolResult], name: undefined },
 			];
-			const result = convertMessages(messages, 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+			const result = convertMessages(messages, "anthropic.claude-3-5-sonnet-20241022-v2:0");
 			assert.ok(result.messages.length > 0);
 			const hasToolUse = result.messages.some((m) => m.content.some((c) => "toolUse" in c));
 			const hasToolResult = result.messages.some((m) => m.content.some((c) => "toolResult" in c));
@@ -142,7 +142,7 @@ suite("Bedrock Chat Provider Extension", () => {
 				content: [new vscode.LanguageModelTextPart("before "), toolCall, new vscode.LanguageModelTextPart(" after")],
 				name: undefined,
 			};
-			const result = convertMessages([msg], 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+			const result = convertMessages([msg], "anthropic.claude-3-5-sonnet-20241022-v2:0");
 			assert.equal(result.messages.length, 1);
 			assert.equal(result.messages[0].role, "assistant");
 			assert.ok(result.messages[0].content.length > 0);
@@ -151,15 +151,18 @@ suite("Bedrock Chat Provider Extension", () => {
 
 	suite("converters/tools", () => {
 		test("convertTools returns Bedrock tool definitions", () => {
-			const out = convertTools({
-				tools: [
-					{
-						name: "do_something",
-						description: "Does something",
-						inputSchema: { type: "object", properties: { x: { type: "number" } }, additionalProperties: false },
-					},
-				],
-			} satisfies vscode.LanguageModelChatRequestHandleOptions, 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+			const out = convertTools(
+				{
+					tools: [
+						{
+							name: "do_something",
+							description: "Does something",
+							inputSchema: { type: "object", properties: { x: { type: "number" } }, additionalProperties: false },
+						},
+					],
+				} satisfies vscode.LanguageModelChatRequestHandleOptions,
+				"anthropic.claude-3-5-sonnet-20241022-v2:0"
+			);
 
 			assert.ok(out);
 			assert.ok(out.toolChoice);
@@ -168,16 +171,19 @@ suite("Bedrock Chat Provider Extension", () => {
 		});
 
 		test("convertTools respects ToolMode.Required for single tool", () => {
-			const out = convertTools({
-				toolMode: vscode.LanguageModelChatToolMode.Required,
-				tools: [
-					{
-						name: "only_tool",
-						description: "Only tool",
-						inputSchema: {},
-					},
-				],
-			} satisfies vscode.LanguageModelChatRequestHandleOptions, 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+			const out = convertTools(
+				{
+					toolMode: vscode.LanguageModelChatToolMode.Required,
+					tools: [
+						{
+							name: "only_tool",
+							description: "Only tool",
+							inputSchema: {},
+						},
+					],
+				} satisfies vscode.LanguageModelChatRequestHandleOptions,
+				"anthropic.claude-3-5-sonnet-20241022-v2:0"
+			);
 			assert.ok(out);
 			assert.ok(out.toolChoice?.tool);
 			assert.equal(out.toolChoice?.tool?.name, "only_tool");
@@ -202,7 +208,11 @@ suite("Bedrock Chat Provider Extension", () => {
 
 			const invalid: vscode.LanguageModelChatMessage[] = [
 				{ role: vscode.LanguageModelChatMessageRole.Assistant, content: [toolCall], name: undefined },
-				{ role: vscode.LanguageModelChatMessageRole.User, content: [new vscode.LanguageModelTextPart("missing")], name: undefined },
+				{
+					role: vscode.LanguageModelChatMessageRole.User,
+					content: [new vscode.LanguageModelTextPart("missing")],
+					name: undefined,
+				},
 			];
 			assert.throws(() => validateRequest(invalid));
 		});

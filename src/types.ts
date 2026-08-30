@@ -36,7 +36,12 @@ export interface BedrockThinkingBlock {
 	};
 }
 
-export type BedrockContentBlock = BedrockTextBlock | BedrockImageBlock | BedrockToolUseBlock | BedrockToolResultBlock | BedrockThinkingBlock;
+export type BedrockContentBlock =
+	| BedrockTextBlock
+	| BedrockImageBlock
+	| BedrockToolUseBlock
+	| BedrockToolResultBlock
+	| BedrockThinkingBlock;
 
 /**
  * Bedrock Converse API message structure.
@@ -111,14 +116,36 @@ export interface ToolCallBuffer {
  * Bedrock thinking configuration for extended thinking models.
  */
 export interface BedrockThinkingConfig {
-	type: 'enabled' | 'disabled';
+	type: "enabled" | "disabled";
 	budget_tokens?: number;
+}
+
+/**
+ * A manually-declared Bedrock model. Used when bedrock:ListFoundationModels is
+ * blocked by an SCP, or to pin an explicit set of models.
+ */
+export interface ManualModel {
+	/** Bare model ID, e.g. "anthropic.claude-opus-4-8". */
+	id: string;
+	/** Display name shown in the picker. Defaults to id. */
+	name?: string;
+	/**
+	 * Inference profile ID or ARN to invoke instead of the bare ID.
+	 * Equivalent to an entry in inferenceProfileOverrides.
+	 */
+	inferenceProfile?: string;
+	/** Whether the model accepts image input. Defaults to false. */
+	vision?: boolean;
+	/** Optional context-window override (input tokens). */
+	maxInputTokens?: number;
+	/** Optional max output tokens. */
+	maxOutputTokens?: number;
 }
 
 /**
  * Authentication method for AWS Bedrock.
  */
-export type AuthMethod = 'api-key' | 'profile' | 'access-keys' | 'default';
+export type AuthMethod = "api-key" | "profile" | "access-keys" | "default";
 
 /**
  * Authentication configuration for AWS Bedrock.

@@ -1,9 +1,9 @@
-import * as vscode from "vscode";
 import { fromIni } from "@aws-sdk/credential-providers";
-import type { AuthConfig } from "../types";
 import type { AwsCredentialIdentity, Provider } from "@aws-sdk/types";
-import { ConfigurationService } from "./configuration.service";
+import * as vscode from "vscode";
 import { logger } from "../logger";
+import type { AuthConfig } from "../types";
+import type { ConfigurationService } from "./configuration.service";
 
 export class AuthenticationService {
 	constructor(private readonly configService: ConfigurationService) {}
@@ -11,11 +11,11 @@ export class AuthenticationService {
 	async getAuthConfig(silent = false): Promise<AuthConfig | undefined> {
 		const method = this.configService.getAuthMethod();
 
-		if (method === 'default') {
-			return { method: 'default' };
+		if (method === "default") {
+			return { method: "default" };
 		}
 
-		if (method === 'api-key') {
+		if (method === "api-key") {
 			const apiKey = await this.configService.getApiKey();
 			if (!apiKey && !silent) {
 				vscode.window.showInformationMessage(
@@ -26,10 +26,10 @@ export class AuthenticationService {
 			if (!apiKey) {
 				return undefined;
 			}
-			return { method: 'api-key', apiKey };
+			return { method: "api-key", apiKey };
 		}
 
-		if (method === 'profile') {
+		if (method === "profile") {
 			const profile = this.configService.getProfile();
 			if (!profile && !silent) {
 				vscode.window.showInformationMessage(
@@ -40,10 +40,10 @@ export class AuthenticationService {
 			if (!profile) {
 				return undefined;
 			}
-			return { method: 'profile', profile };
+			return { method: "profile", profile };
 		}
 
-		if (method === 'access-keys') {
+		if (method === "access-keys") {
 			const accessKeyId = await this.configService.getAccessKeyId();
 			const secretAccessKey = await this.configService.getSecretAccessKey();
 			const sessionToken = await this.configService.getSessionToken();
@@ -58,7 +58,7 @@ export class AuthenticationService {
 			}
 
 			return {
-				method: 'access-keys',
+				method: "access-keys",
 				accessKeyId,
 				secretAccessKey,
 				...(sessionToken && { sessionToken }),
@@ -73,9 +73,9 @@ export class AuthenticationService {
 	 * Returns undefined for non-api-key auth methods.
 	 */
 	getBearerToken(authConfig: AuthConfig): string | undefined {
-		if (authConfig.method === 'api-key') {
+		if (authConfig.method === "api-key") {
 			if (!authConfig.apiKey) {
-				throw new Error('API key is required for api-key authentication method');
+				throw new Error("API key is required for api-key authentication method");
 			}
 			return authConfig.apiKey;
 		}
@@ -87,22 +87,22 @@ export class AuthenticationService {
 	 * For api-key auth, returns undefined (bearer token is handled separately via BedrockClient).
 	 */
 	getCredentials(authConfig: AuthConfig): AwsCredentialIdentity | Provider<AwsCredentialIdentity> | undefined {
-		if (authConfig.method === 'api-key') {
+		if (authConfig.method === "api-key") {
 			logger.log("[Authentication Service] Using API key authentication");
 			return undefined;
 		}
 
-		if (authConfig.method === 'profile') {
+		if (authConfig.method === "profile") {
 			if (!authConfig.profile) {
-				throw new Error('Profile name is required for profile authentication method');
+				throw new Error("Profile name is required for profile authentication method");
 			}
 			logger.log("[Authentication Service] Using profile authentication:", authConfig.profile);
 			return fromIni({ profile: authConfig.profile });
 		}
 
-		if (authConfig.method === 'access-keys') {
+		if (authConfig.method === "access-keys") {
 			if (!authConfig.accessKeyId || !authConfig.secretAccessKey) {
-				throw new Error('Access key ID and secret access key are required for access-keys authentication method');
+				throw new Error("Access key ID and secret access key are required for access-keys authentication method");
 			}
 			logger.log("[Authentication Service] Using access keys authentication");
 			return {

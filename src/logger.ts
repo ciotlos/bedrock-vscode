@@ -10,20 +10,32 @@ import * as vscode from "vscode";
 
 /** Keys whose values should be redacted in log output. */
 const SENSITIVE_KEY_PATTERNS = [
-	'apikey', 'api_key', 'apiKey',
-	'secretaccesskey', 'secret_access_key', 'secretAccessKey',
-	'accesskeyid', 'access_key_id', 'accessKeyId',
-	'sessiontoken', 'session_token', 'sessionToken',
-	'password', 'passwd',
-	'token', 'bearer',
-	'authorization', 'auth',
-	'secret', 'credential',
+	"apikey",
+	"api_key",
+	"apiKey",
+	"secretaccesskey",
+	"secret_access_key",
+	"secretAccessKey",
+	"accesskeyid",
+	"access_key_id",
+	"accessKeyId",
+	"sessiontoken",
+	"session_token",
+	"sessionToken",
+	"password",
+	"passwd",
+	"token",
+	"bearer",
+	"authorization",
+	"auth",
+	"secret",
+	"credential",
 ];
 
 /** Check if a key name matches a sensitive pattern. */
 function isSensitiveKey(key: string): boolean {
 	const lower = key.toLowerCase();
-	return SENSITIVE_KEY_PATTERNS.some(pattern => lower.includes(pattern));
+	return SENSITIVE_KEY_PATTERNS.some((pattern) => lower.includes(pattern));
 }
 
 class Logger {
@@ -37,7 +49,7 @@ class Logger {
 
 	private formatMessage(level: string, args: unknown[]): string {
 		const timestamp = new Date().toISOString();
-		const message = args.map(arg => this.safeStringify(arg)).join(' ');
+		const message = args.map((arg) => this.safeStringify(arg)).join(" ");
 		return `[${timestamp}] [${level}] ${message}`;
 	}
 
@@ -49,7 +61,7 @@ class Logger {
 			return String(value);
 		}
 
-		if (typeof value !== 'object') {
+		if (typeof value !== "object") {
 			return String(value);
 		}
 
@@ -67,7 +79,7 @@ class Logger {
 
 			// Include any additional properties on the error
 			for (const key of Object.keys(value)) {
-				if (key !== 'name' && key !== 'message' && key !== 'stack') {
+				if (key !== "name" && key !== "message" && key !== "stack") {
 					try {
 						errorInfo[key] = (value as unknown as Record<string, unknown>)[key];
 					} catch {
@@ -87,19 +99,23 @@ class Logger {
 		// Also redact sensitive keys to prevent credential leaks
 		const seen = new WeakSet();
 		try {
-			return JSON.stringify(value, (key: string, val: unknown) => {
-				if (typeof val === 'object' && val !== null) {
-					if (seen.has(val)) {
-						return '[Circular Reference]';
+			return JSON.stringify(
+				value,
+				(key: string, val: unknown) => {
+					if (typeof val === "object" && val !== null) {
+						if (seen.has(val)) {
+							return "[Circular Reference]";
+						}
+						seen.add(val);
 					}
-					seen.add(val);
-				}
-				// Redact sensitive values
-				if (key && typeof val === 'string' && isSensitiveKey(key)) {
-					return '[REDACTED]';
-				}
-				return val;
-			}, 2);
+					// Redact sensitive values
+					if (key && typeof val === "string" && isSensitiveKey(key)) {
+						return "[REDACTED]";
+					}
+					return val;
+				},
+				2
+			);
 		} catch {
 			// Fallback: use Object.prototype.toString if JSON.stringify fails
 			return Object.prototype.toString.call(value);
@@ -113,36 +129,35 @@ class Logger {
 		}
 	}
 
-	private logToConsole(method: 'log' | 'error' | 'warn' | 'info' | 'debug', args: unknown[]): void {
-		if (this.extensionMode === vscode.ExtensionMode.Development ||
-		    this.extensionMode === vscode.ExtensionMode.Test) {
+	private logToConsole(method: "log" | "error" | "warn" | "info" | "debug", args: unknown[]): void {
+		if (this.extensionMode === vscode.ExtensionMode.Development || this.extensionMode === vscode.ExtensionMode.Test) {
 			console[method](...args);
 		}
 	}
 
 	log(...args: unknown[]): void {
-		this.logToChannel('INFO', args);
-		this.logToConsole('log', args);
+		this.logToChannel("INFO", args);
+		this.logToConsole("log", args);
 	}
 
 	error(...args: unknown[]): void {
-		this.logToChannel('ERROR', args);
-		this.logToConsole('error', args);
+		this.logToChannel("ERROR", args);
+		this.logToConsole("error", args);
 	}
 
 	warn(...args: unknown[]): void {
-		this.logToChannel('WARN', args);
-		this.logToConsole('warn', args);
+		this.logToChannel("WARN", args);
+		this.logToConsole("warn", args);
 	}
 
 	info(...args: unknown[]): void {
-		this.logToChannel('INFO', args);
-		this.logToConsole('info', args);
+		this.logToChannel("INFO", args);
+		this.logToConsole("info", args);
 	}
 
 	debug(...args: unknown[]): void {
-		this.logToChannel('DEBUG', args);
-		this.logToConsole('debug', args);
+		this.logToChannel("DEBUG", args);
+		this.logToConsole("debug", args);
 	}
 }
 

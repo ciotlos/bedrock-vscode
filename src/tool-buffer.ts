@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import type { ToolCallBuffer } from "./types";
 import { tryParseJSONObject } from "./converters/schema";
 import { logger } from "./logger";
+import type { ToolCallBuffer } from "./types";
 
 export class ToolCallBufferManager {
 	private buffers = new Map<number, ToolCallBuffer>();

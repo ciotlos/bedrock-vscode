@@ -10,7 +10,7 @@
 	},
 	"version": "0.3.0",
 	"engines": {
-		"vscode": "^1.108.0"
+		"vscode": "^1.134.0"
 	},
 	"enabledApiProposals": [
 		"languageModelThinkingPart"
@@ -76,6 +76,53 @@
 					"minimum": 1024,
 					"maximum": 32768,
 					"title": "Thinking Budget Tokens"
+				},
+				"languageModelChatProvider.bedrock.inferenceProfileOverrides": {
+					"type": "object",
+					"title": "Inference Profile Overrides",
+					"default": {},
+					"markdownDescription": "Map bare model IDs to custom inference profile ARNs or IDs (e.g. application inference profiles). Use this to route a specific model through a custom profile instead of the default system cross-region profile. Example: `{ \"anthropic.claude-opus-4-8\": \"arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123\" }`.",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"languageModelChatProvider.bedrock.manualModels": {
+					"type": "array",
+					"title": "Manual Models",
+					"default": [],
+					"markdownDescription": "Manually declared Bedrock models. Use this when the environment blocks `bedrock:ListFoundationModels` / `bedrock:ListInferenceProfiles` (e.g. a restrictive Service Control Policy) but still allows Converse/InvokeModel, or to pin an explicit set of models. If auto-discovery fails and this list is non-empty, the extension falls back to these models instead of erroring; otherwise entries are merged with discovered models.",
+					"items": {
+						"type": "object",
+						"required": ["id"],
+						"additionalProperties": false,
+						"properties": {
+							"id": {
+								"type": "string",
+								"description": "Bare model ID, e.g. \"anthropic.claude-opus-4-8\"."
+							},
+							"name": {
+								"type": "string",
+								"description": "Display name shown in the model picker. Defaults to the id."
+							},
+							"inferenceProfile": {
+								"type": "string",
+								"description": "Inference profile ID or ARN to invoke instead of the bare id (e.g. \"global.anthropic.claude-opus-4-8\"). Most cross-region models require this."
+							},
+							"vision": {
+								"type": "boolean",
+								"default": false,
+								"description": "Whether the model accepts image input."
+							},
+							"maxInputTokens": {
+								"type": "number",
+								"description": "Optional context-window override (input tokens)."
+							},
+							"maxOutputTokens": {
+								"type": "number",
+								"description": "Optional max output tokens."
+							}
+						}
+					}
 				}
 			}
 		},
@@ -104,29 +151,26 @@
 		"postdownload-api": "dts main",
 		"postinstall": "npm run download-api",
 		"compile": "tsc -p ./",
-		"lint": "eslint",
-		"format": "prettier --write .",
+		"lint": "biome check .",
+		"format": "biome format --write .",
 		"watch": "tsc -watch -p ./",
 		"test": "npm run compile && vscode-test"
 	},
 	"dependencies": {
-		"@aws-sdk/client-bedrock": "^3.716.0",
-		"@aws-sdk/client-bedrock-runtime": "^3.716.0",
-		"@aws-sdk/credential-providers": "^3.901.0"
+		"@aws-sdk/client-bedrock": "^3.1121.0",
+		"@aws-sdk/client-bedrock-runtime": "^3.1121.0",
+		"@aws-sdk/credential-providers": "^3.1121.0",
+		"https-proxy-agent": "^9.1.0"
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.13.0",
-		"@stylistic/eslint-plugin": "^2.9.0",
-		"@types/mocha": "^10.0.6",
-		"@types/node": "^22",
-		"@types/vscode": "^1.108.0",
+		"@biomejs/biome": "^2.5.11",
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^26.4.0",
+		"@types/vscode": "^1.134.0",
 		"@vscode/dts": "^0.4.1",
-		"@vscode/test-cli": "^0.0.11",
-		"@vscode/test-electron": "^2.5.2",
-		"dotenv": "^17.2.3",
-		"eslint": "^9.13.0",
-		"prettier": "^3.1.0",
-		"typescript": "^5.9.2",
-		"typescript-eslint": "^8.39.0"
+		"@vscode/test-cli": "^0.0.15",
+		"@vscode/test-electron": "^3.1.0",
+		"dotenv": "^17.4.2",
+		"typescript": "^7.0.2"
 	}
 }
