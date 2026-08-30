@@ -19,21 +19,6 @@
 		"AI",
 		"Chat"
 	],
-	"galleryBanner": {
-		"color": "#100f11",
-		"theme": "dark"
-	},
-	"badges": [
-		{
-			"url": "https://img.shields.io/github/stars/ciotlos/bedrock-vscode-copilot?style=social",
-			"description": "Star on Github",
-			"href": "https://github.com/ciotlos/bedrock-vscode-copilot"
-		}
-	],
-	"homepage": "https://github.com/ciotlos/bedrock-vscode-copilot",
-	"bugs": {
-		"url": "https://github.com/ciotlos/bedrock-vscode-copilot/issues"
-	},
 	"license": "MIT",
 	"contributes": {
 		"configuration": {

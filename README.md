@@ -2,8 +2,6 @@
 
 Integrates AWS Bedrock foundation models into GitHub Copilot Chat for VS Code.
 
-![Demo](assets/demo.gif)
-
 ## Quick Start
 
 1. Install the extension
