@@ -197,16 +197,7 @@ export class ChatRequestHandler {
 				throw new Error("Cannot have more than 128 tools per request.");
 			}
 
-			const inputTokenCount = this.tokenEstimator.estimateMessagesTokens(messages);
-			const toolTokenCount = this.tokenEstimator.estimateToolTokens(toolConfig);
 			const tokenLimit = Math.max(1, model.maxInputTokens);
-			if (inputTokenCount + toolTokenCount > tokenLimit) {
-				logger.error("[Chat Request Handler] Message exceeds token limit", {
-					total: inputTokenCount + toolTokenCount,
-					tokenLimit,
-				});
-				throw new Error("Message exceeds token limit.");
-			}
 
 			// Check if thinking is configured and model supports it
 			const thinkingConfig = this.configService.getThinkingConfig();
@@ -266,6 +257,26 @@ export class ChatRequestHandler {
 			logger.log("[Chat Request Handler] Starting streaming request");
 			const credentials = this.authService.getCredentials(authConfig);
 			const bearerToken = this.authService.getBearerToken(authConfig);
+
+			const nativeCount = await this.bedrockClient.countTokens(
+				credentials,
+				model.id,
+				converted.messages as ConverseStreamCommandInput["messages"],
+				bearerToken,
+				converted.system as ConverseStreamCommandInput["system"],
+				toolConfig as ConverseStreamCommandInput["toolConfig"]
+			);
+			const inputTokenCount =
+				nativeCount ??
+				this.tokenEstimator.estimateMessagesTokens(messages) + this.tokenEstimator.estimateToolTokens(toolConfig);
+			if (inputTokenCount > tokenLimit) {
+				logger.error("[Chat Request Handler] Message exceeds token limit", {
+					total: inputTokenCount,
+					tokenLimit,
+					source: nativeCount !== undefined ? "native" : "estimate",
+				});
+				throw new Error("Message exceeds token limit.");
+			}
 
 			// Wrap the streaming call in retry logic for transient errors
 			await withRetry(async () => {

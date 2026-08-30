@@ -207,20 +207,29 @@ export class BedrockClient {
 
 	/**
 	 * Count tokens for a set of messages using the model's native tokenizer.
+	 * Pass system and toolConfig for accurate pre-flight checks that match the real request.
 	 * Returns undefined if the model does not support CountTokens or the call fails.
 	 */
 	async countTokens(
 		credentials: CredentialInput,
 		modelId: string,
 		messages: ConverseStreamCommandInput["messages"],
-		bearerToken?: string
+		bearerToken?: string,
+		system?: ConverseStreamCommandInput["system"],
+		toolConfig?: ConverseStreamCommandInput["toolConfig"]
 	): Promise<number | undefined> {
 		return this.withScopedBearerToken(bearerToken, async () => {
 			try {
 				const client = await this.getRuntimeClient(credentials);
 				const command = new CountTokensCommand({
 					modelId,
-					input: { converse: { messages } },
+					input: {
+						converse: {
+							messages,
+							...(system && system.length > 0 && { system }),
+							...(toolConfig && { toolConfig }),
+						},
+					},
 				});
 				const response = await client.send(command);
 				return response.inputTokens ?? undefined;
