@@ -26,11 +26,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       # Skip postinstall (downloads VS Code API types) -- not needed here
@@ -41,18 +41,10 @@ jobs:
       # the secret AWS_ROLE_ARN, then set the GitHub OIDC provider as a
       # trusted entity for that role.
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-
-      # Access-key fallback -- uncomment and comment out the OIDC step above:
-      # - name: Configure AWS credentials (access keys)
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: us-east-1
 
       - name: Check and update model metadata
         id: check
@@ -62,7 +54,7 @@ jobs:
         run: echo "TODAY=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
 
       - name: Open PR if metadata changed
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: sync Bedrock model metadata (${{ env.TODAY }})"
